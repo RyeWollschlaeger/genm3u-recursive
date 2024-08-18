@@ -1,0 +1,36 @@
+#!/bin/bash
+# Made with <3 by @maakhai
+
+arquivo="$2.m3u"
+extensoes_audio="mp3 flac aac ogg"
+extensoes_video="mp4 mkv avi"
+
+mensagem_de_uso="Utilização: $0 <comando> <nome_playlist>
+\n\n
+-a | --audio\n
+-v | --video   
+"
+
+cria_playlist(){
+  for ext in $1; do
+    ls -1v *.$ext 2> /dev/null >> $arquivo
+  done
+}
+
+case $1 in
+  -h | --help) 
+    echo -e $mensagem_de_uso;;
+  -a | --audio) 
+    cria_playlist "$extensoes_audio";;
+  -v | --video)
+    cria_playlist "$extensoes_video";;
+  *)
+    echo "Use $0 -h para obter ajuda ";;
+esac
+
+if [ -f $arquivo ]
+then
+  echo "concluído ✨ 🌟 ✨"
+else
+  echo "A operação falhou."
+fi
