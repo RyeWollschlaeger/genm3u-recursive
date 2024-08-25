@@ -10,7 +10,6 @@ This script is a simple Bash tool designed to generate `.m3u` playlists from aud
 
 - `-a` or `--audio`: Creates a playlist containing all audio files (`.mp3`, `.flac`, `.aac`, `.ogg`) in the current directory.
 - `-v` or `--video`: Creates a playlist containing all video files (`.mp4`, `.mkv`, `.avi`) in the current directory.
-- `-h` or `--help`: Displays usage information.
 
 ### Example:
 
