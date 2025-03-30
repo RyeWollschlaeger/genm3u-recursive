@@ -1,41 +1,73 @@
 #!/bin/bash
 # Made with <3 by @maakhai
-# Version: 0.2
+# Version: 0.3
 
-arquivo="$2.m3u"
-extensoes_audio="mp3 flac aac ogg"
-extensoes_video="mp4 mkv avi"
-mensagem_de_uso="usage: $0 <command> <playlist_name>
-\n\n
--a | --audio\n
--v | --video   
-"
+# Configuration
+audio_extensions="mp3 flac aac ogg"
+video_extensions="mp4 mkv avi"
+default_playlist="playlist.m3u"
 
-if [ -z "$2" ]; then
-  	arquivo="playlist.m3u"
-fi
+# Usage message using here-doc for better formatting
+usage_message() {
+    cat <<EOF
+Usage: $0 [OPTION] [PLAYLIST_NAME]
 
-cria_playlist(){
-  for ext in $1; do
-    ls -1v *.$ext 2> /dev/null >> $arquivo
-  done
+Options:
+  -a, --audio    Create playlist with audio files (extensions: $audio_extensions)
+  -v, --video    Create playlist with video files (extensions: $video_extensions)
+
+If PLAYLIST_NAME is not provided, defaults to '$default_playlist'.
+EOF
 }
 
-case $1 in 
-  -a | --audio) 
-    cria_playlist "$extensoes_audio"
-    ;;
-  -v | --video)
-    cria_playlist "$extensoes_video"
-    ;;
-  *)
-    echo -e $mensagem_de_uso
-    exit
-    ;;
+# Argument validation
+if [[ $# -lt 1 || $# -gt 2 ]]; then
+    usage_message
+    exit 1
+fi
+
+# Process playlist filename
+playlist_file="$default_playlist"
+if [[ -n "$2" ]]; then
+    case "$2" in
+        *.m3u) playlist_file="$2" ;;
+        *)     playlist_file="${2}.m3u" ;;
+    esac
+fi
+
+# Function to create playlist handling whitespace and numerical sorting
+create_playlist() {
+    : > "$playlist_file" # Clear file before starting
+    
+    local extensions=($1)
+    for ext in "${extensions[@]}"; do
+        # Use find for better control and portability
+        find . -maxdepth 1 -type f -name "*.$ext" -print0 | 
+            sort -Vz |
+            xargs -0 -I {} basename "{}" >> "$playlist_file"
+    done
+}
+
+# Process options
+case "$1" in
+    -a|--audio)
+        create_playlist "$audio_extensions"
+        ;;
+    -v|--video)
+        create_playlist "$video_extensions"
+        ;;
+    *)
+        usage_message
+        exit 1
+        ;;
 esac
 
-if [ -f "$arquivo" ]; then
-  echo "completed ✨ 🌟 ✨"
+# Check results
+if [[ -s "$playlist_file" ]]; then
+    echo "Playlist created successfully: '$playlist_file' ✨ 🌟 ✨"
+    exit 0
 else
-  echo "the operation failed."
+    echo "Error: No files found. Playlist is empty."
+    rm -f "$playlist_file"
+    exit 1
 fi
