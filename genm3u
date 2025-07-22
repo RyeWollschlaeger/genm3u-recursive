@@ -1,73 +1,106 @@
 #!/bin/bash
 # Made with <3 by @maakhai
-# Version: 0.3
+# Forked by @ryewollschlaeger
+# Version: 0.4
 
 # Configuration
 audio_extensions="mp3 flac aac ogg"
 video_extensions="mp4 mkv avi"
 default_playlist="playlist.m3u"
+skip_confirmation=false
 
-# Usage message using here-doc for better formatting
 usage_message() {
     cat <<EOF
-Usage: $0 [OPTION] [PLAYLIST_NAME]
+Usage: $0 [OPTION] [PLAYLIST_NAME] [-y|--yes]
 
 Options:
-  -a, --audio    Create playlist with audio files (extensions: $audio_extensions)
-  -v, --video    Create playlist with video files (extensions: $video_extensions)
+  -a, --audio     Create playlist with audio files (extensions: $audio_extensions)
+  -v, --video     Create playlist with video files (extensions: $video_extensions)
+  -y, --yes       Skip confirmation prompt
 
 If PLAYLIST_NAME is not provided, defaults to '$default_playlist'.
 EOF
 }
 
-# Argument validation
-if [[ $# -lt 1 || $# -gt 2 ]]; then
+# Parse options and flags
+main_option=""
+playlist_arg=""
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -a|--audio|-v|--video)
+            main_option="$1"
+            shift
+            ;;
+        -y|--yes)
+            skip_confirmation=true
+            shift
+            ;;
+        -*)
+            usage_message
+            exit 1
+            ;;
+        *)
+            playlist_arg="$1"
+            shift
+            ;;
+    esac
+done
+
+if [[ -z "$main_option" ]]; then
     usage_message
     exit 1
 fi
 
-# Process playlist filename
 playlist_file="$default_playlist"
-if [[ -n "$2" ]]; then
-    case "$2" in
-        *.m3u) playlist_file="$2" ;;
-        *)     playlist_file="${2}.m3u" ;;
+if [[ -n "$playlist_arg" ]]; then
+    case "$playlist_arg" in
+        *.m3u) playlist_file="$playlist_arg" ;;
+        *)     playlist_file="${playlist_arg}.m3u" ;;
     esac
 fi
 
-# Function to create playlist handling whitespace and numerical sorting
-create_playlist() {
-    : > "$playlist_file" # Clear file before starting
-    
-    local extensions=($1)
-    for ext in "${extensions[@]}"; do
-        # Use find for better control and portability
-        find . -maxdepth 1 -type f -name "*.$ext" -print0 | 
-            sort -Vz |
-            xargs -0 -I {} basename "{}" >> "$playlist_file"
-    done
+confirm_search() {
+    if [[ "$skip_confirmation" = true ]]; then
+        return 0
+    fi
+    echo "You're about to recursively search for files in: $(pwd)"
+    read -p "Proceed? [y/N] " answer
+    case "$answer" in
+        [Yy]* ) return 0 ;;
+        * ) echo "Aborted."; exit 1 ;;
+    esac
 }
 
-# Process options
-case "$1" in
+create_playlist() {
+    : > "$playlist_file"
+
+    local extensions=($1)
+    for ext in "${extensions[@]}"; do
+        find . -type f -iname "*.${ext}" -print0
+    done |
+        sort -z -Vz |
+        while IFS= read -r -d '' file; do
+            echo "${file#./}" >> "$playlist_file"
+        done
+}
+
+case "$main_option" in
     -a|--audio)
+        confirm_search
         create_playlist "$audio_extensions"
         ;;
     -v|--video)
+        confirm_search
         create_playlist "$video_extensions"
-        ;;
-    *)
-        usage_message
-        exit 1
         ;;
 esac
 
-# Check results
 if [[ -s "$playlist_file" ]]; then
-    echo "Playlist created successfully: '$playlist_file' ✨ 🌟 ✨"
+    echo "Playlist created successfully: '$playlist_file'"
     exit 0
 else
     echo "Error: No files found. Playlist is empty."
     rm -f "$playlist_file"
     exit 1
 fi
+
